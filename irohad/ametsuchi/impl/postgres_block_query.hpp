@@ -6,11 +6,11 @@
 #ifndef IROHA_POSTGRES_FLAT_BLOCK_QUERY_HPP
 #define IROHA_POSTGRES_FLAT_BLOCK_QUERY_HPP
 
-#include <boost/optional.hpp>
-
 #include "ametsuchi/block_query.hpp"
+
+#include <soci/soci.h>
+#include <boost/optional.hpp>
 #include "ametsuchi/impl/flat_file/flat_file.hpp"
-#include "ametsuchi/impl/soci_utils.hpp"
 #include "interfaces/iroha_internal/block_json_deserializer.hpp"
 #include "logger/logger.hpp"
 
@@ -26,6 +26,12 @@ namespace iroha {
      public:
       PostgresBlockQuery(
           soci::session &sql,
+          KeyValueStorage &file_store,
+          std::shared_ptr<shared_model::interface::BlockJsonDeserializer>
+              converter);
+
+      PostgresBlockQuery(
+          std::unique_ptr<soci::session> sql,
           KeyValueStorage &file_store,
           std::shared_ptr<shared_model::interface::BlockJsonDeserializer>
               converter);
@@ -95,6 +101,7 @@ namespace iroha {
                        std::string>
       getBlock(shared_model::interface::types::HeightType id) const;
 
+      std::unique_ptr<soci::session> psql_;
       soci::session &sql_;
 
       KeyValueStorage &block_store_;

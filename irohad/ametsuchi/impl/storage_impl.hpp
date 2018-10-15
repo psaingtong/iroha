@@ -69,6 +69,10 @@ namespace iroha {
       boost::optional<std::shared_ptr<OrderingServicePersistentState>>
       createOsPersistentState() const override;
 
+      boost::optional<std::shared_ptr<QueryExecutor>> createQueryExecutor(
+          std::shared_ptr<PendingTransactionStorage> pending_txs_storage)
+          const override;
+
       /**
        * Insert block without validation
        * @param blocks - block for insertion
@@ -89,6 +93,8 @@ namespace iroha {
 
       void dropStorage() override;
 
+      void freeConnections() override;
+
       void commit(std::unique_ptr<MutableStorage> mutableStorage) override;
 
       std::shared_ptr<WsvQuery> getWsvQuery() const override;
@@ -97,6 +103,8 @@ namespace iroha {
 
       rxcpp::observable<std::shared_ptr<shared_model::interface::Block>>
       on_commit() override;
+
+      ~StorageImpl() override;
 
      protected:
       StorageImpl(std::string block_store_dir,

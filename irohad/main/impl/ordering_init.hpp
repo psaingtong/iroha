@@ -19,13 +19,13 @@
 #define IROHA_ORDERING_INIT_HPP
 
 #include "ametsuchi/block_query_factory.hpp"
-#include "ametsuchi/peer_query_factory.hpp"
 #include "ametsuchi/os_persistent_state_factory.hpp"
+#include "ametsuchi/peer_query_factory.hpp"
 #include "logger/logger.hpp"
 #include "ordering/impl/ordering_gate_impl.hpp"
 #include "ordering/impl/ordering_gate_transport_grpc.hpp"
-#include "ordering/impl/ordering_service_impl.hpp"
 #include "ordering/impl/ordering_service_transport_grpc.hpp"
+#include "ordering/impl/single_peer_ordering_service.hpp"
 
 namespace iroha {
 
@@ -79,6 +79,8 @@ namespace iroha {
        * @param persistent_state - factory to access persistent state
        * @param block_query_factory - block store factory to get last block
        * height
+       * @param transaction_batch_factory - factory to create transaction
+       * batches
        * @param async_call - async grpc client that is passed to transport
        * components
        * @return efficient implementation of OrderingGate
@@ -87,13 +89,14 @@ namespace iroha {
           std::shared_ptr<ametsuchi::PeerQueryFactory> peer_query_factory,
           size_t max_size,
           std::chrono::milliseconds delay_milliseconds,
-          std::shared_ptr<ametsuchi::OsPersistentStateFactory>
-              persistent_state,
+          std::shared_ptr<ametsuchi::OsPersistentStateFactory> persistent_state,
           std::shared_ptr<ametsuchi::BlockQueryFactory> block_query_factory,
+          std::shared_ptr<shared_model::interface::TransactionBatchFactory>
+              transaction_batch_factory,
           std::shared_ptr<network::AsyncGrpcClient<google::protobuf::Empty>>
               async_call);
 
-      std::shared_ptr<iroha::network::OrderingService> ordering_service;
+      std::shared_ptr<ordering::SinglePeerOrderingService> ordering_service;
       std::shared_ptr<iroha::network::OrderingGate> ordering_gate;
       std::shared_ptr<ordering::OrderingGateTransportGrpc>
           ordering_gate_transport;

@@ -10,10 +10,11 @@
 #include <vector>
 
 #include "ametsuchi/block_query_factory.hpp"
-#include "ametsuchi/os_persistent_state_factory.hpp"
 #include "ametsuchi/mutable_factory.hpp"
+#include "ametsuchi/os_persistent_state_factory.hpp"
 #include "ametsuchi/peer_query_factory.hpp"
 #include "ametsuchi/temporary_factory.hpp"
+#include "ametsuchi/query_executor_factory.hpp"
 #include "common/result.hpp"
 
 namespace shared_model {
@@ -37,7 +38,8 @@ namespace iroha {
                     public MutableFactory,
                     public PeerQueryFactory,
                     public BlockQueryFactory,
-                    public OsPersistentStateFactory {
+                    public OsPersistentStateFactory,
+                    public QueryExecutorFactory {
      public:
       virtual std::shared_ptr<WsvQuery> getWsvQuery() const = 0;
 
@@ -76,6 +78,8 @@ namespace iroha {
        * Tables and the database will be removed too
        */
       virtual void dropStorage() = 0;
+
+      virtual void freeConnections() = 0;
 
       virtual ~Storage() = default;
     };

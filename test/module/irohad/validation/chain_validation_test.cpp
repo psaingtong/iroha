@@ -17,6 +17,7 @@ using ::testing::_;
 using ::testing::A;
 using ::testing::ByRef;
 using ::testing::InvokeArgument;
+using ::testing::Pointee;
 using ::testing::Return;
 
 class ChainValidationTest : public ::testing::Test {
@@ -24,14 +25,14 @@ class ChainValidationTest : public ::testing::Test {
   void SetUp() override {
     validator = std::make_shared<ChainValidatorImpl>(supermajority_checker);
     storage = std::make_shared<MockMutableStorage>();
-    query = std::make_shared<MockWsvQuery>();
+    query = std::make_shared<MockPeerQuery>();
     peers = std::vector<std::shared_ptr<shared_model::interface::Peer>>();
 
     EXPECT_CALL(*block, height()).WillRepeatedly(Return(1));
     EXPECT_CALL(*block, prevHash()).WillRepeatedly(testing::ReturnRef(hash));
     EXPECT_CALL(*block, signatures())
         .WillRepeatedly(
-            testing::Return(std::initializer_list<SignatureMock>{}));
+            testing::Return(std::initializer_list<MockSignature>{}));
     EXPECT_CALL(*block, payload()).WillRepeatedly(testing::ReturnRef(payload));
   }
 
@@ -45,9 +46,8 @@ class ChainValidationTest : public ::testing::Test {
   shared_model::crypto::Hash hash = shared_model::crypto::Hash("valid hash");
   std::shared_ptr<ChainValidatorImpl> validator;
   std::shared_ptr<MockMutableStorage> storage;
-  std::shared_ptr<MockWsvQuery> query;
-  std::shared_ptr<BlockMock> block = std::make_shared<BlockMock>();
-  shared_model::interface::BlockVariant block_variant = block;
+  std::shared_ptr<MockPeerQuery> query;
+  std::shared_ptr<MockBlock> block = std::make_shared<MockBlock>();
 };
 
 /**
@@ -57,17 +57,15 @@ class ChainValidationTest : public ::testing::Test {
  */
 TEST_F(ChainValidationTest, ValidCase) {
   // Valid previous hash, has supermajority, correct peers subset => valid
-  EXPECT_CALL(*supermajority_checker,
-              hasSupermajority(block_variant.signatures(), _))
+  EXPECT_CALL(*supermajority_checker, hasSupermajority(block->signatures(), _))
       .WillOnce(Return(true));
 
-  EXPECT_CALL(*query, getPeers()).WillOnce(Return(peers));
+  EXPECT_CALL(*query, getLedgerPeers()).WillOnce(Return(peers));
 
-  EXPECT_CALL(*storage, check(testing::Ref(block_variant), _))
-      .WillOnce(
-          InvokeArgument<1>(ByRef(block_variant), ByRef(*query), ByRef(hash)));
+  EXPECT_CALL(*storage, check(testing::Ref(*block), _))
+      .WillOnce(InvokeArgument<1>(ByRef(*block), ByRef(*query), ByRef(hash)));
 
-  ASSERT_TRUE(validator->validateBlock(block_variant, *storage));
+  ASSERT_TRUE(validator->validateBlock(block, *storage));
 }
 
 /**
@@ -80,13 +78,13 @@ TEST_F(ChainValidationTest, FailWhenDifferentPrevHash) {
   shared_model::crypto::Hash another_hash =
       shared_model::crypto::Hash(std::string(32, '1'));
 
-  EXPECT_CALL(*query, getPeers()).WillOnce(Return(peers));
+  EXPECT_CALL(*query, getLedgerPeers()).WillOnce(Return(peers));
 
-  EXPECT_CALL(*storage, check(testing::Ref(block_variant), _))
-      .WillOnce(InvokeArgument<1>(
-          ByRef(block_variant), ByRef(*query), ByRef(another_hash)));
+  EXPECT_CALL(*storage, check(testing::Ref(*block), _))
+      .WillOnce(
+          InvokeArgument<1>(ByRef(*block), ByRef(*query), ByRef(another_hash)));
 
-  ASSERT_FALSE(validator->validateBlock(block_variant, *storage));
+  ASSERT_FALSE(validator->validateBlock(block, *storage));
 }
 
 /**
@@ -96,17 +94,15 @@ TEST_F(ChainValidationTest, FailWhenDifferentPrevHash) {
  */
 TEST_F(ChainValidationTest, FailWhenNoSupermajority) {
   // Valid previous hash, no supermajority, correct peers subset => invalid
-  EXPECT_CALL(*supermajority_checker,
-              hasSupermajority(block_variant.signatures(), _))
+  EXPECT_CALL(*supermajority_checker, hasSupermajority(block->signatures(), _))
       .WillOnce(Return(false));
 
-  EXPECT_CALL(*query, getPeers()).WillOnce(Return(peers));
+  EXPECT_CALL(*query, getLedgerPeers()).WillOnce(Return(peers));
 
-  EXPECT_CALL(*storage, check(testing::Ref(block_variant), _))
-      .WillOnce(
-          InvokeArgument<1>(ByRef(block_variant), ByRef(*query), ByRef(hash)));
+  EXPECT_CALL(*storage, check(testing::Ref(*block), _))
+      .WillOnce(InvokeArgument<1>(ByRef(*block), ByRef(*query), ByRef(hash)));
 
-  ASSERT_FALSE(validator->validateBlock(block_variant, *storage));
+  ASSERT_FALSE(validator->validateBlock(block, *storage));
 }
 
 /**
@@ -119,18 +115,15 @@ TEST_F(ChainValidationTest, ValidWhenValidateChainFromOnePeer) {
   EXPECT_CALL(*supermajority_checker, hasSupermajority(_, _))
       .WillOnce(Return(true));
 
-  EXPECT_CALL(*query, getPeers()).WillOnce(Return(peers));
+  EXPECT_CALL(*query, getLedgerPeers()).WillOnce(Return(peers));
 
   // due to conversion to BlockVariant in validateChain() its impossible to pass
   // the block it will check() from here
   EXPECT_CALL(*storage, check(_, _))
-      .WillOnce(
-          InvokeArgument<1>(ByRef(block_variant), ByRef(*query), ByRef(hash)));
+      .WillOnce(InvokeArgument<1>(ByRef(*block), ByRef(*query), ByRef(hash)));
 
   ASSERT_TRUE(validator->validateChain(
-      rxcpp::observable<>::just(boost::apply_visitor(
-          framework::SpecifiedVisitor<
-              std::shared_ptr<shared_model::interface::Block>>(),
-          block_variant)),
+      rxcpp::observable<>::just<
+          std::shared_ptr<shared_model::interface::Block>>(block),
       *storage));
 }

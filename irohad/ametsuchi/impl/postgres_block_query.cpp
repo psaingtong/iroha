@@ -8,6 +8,7 @@
 #include <boost/format.hpp>
 #include <boost/range/adaptor/transformed.hpp>
 #include <boost/range/algorithm/for_each.hpp>
+#include "ametsuchi/impl/soci_utils.hpp"
 
 namespace iroha {
   namespace ametsuchi {
@@ -17,6 +18,17 @@ namespace iroha {
         std::shared_ptr<shared_model::interface::BlockJsonDeserializer>
             converter)
         : sql_(sql),
+          block_store_(file_store),
+          converter_(std::move(converter)),
+          log_(logger::log("PostgresBlockQuery")) {}
+
+    PostgresBlockQuery::PostgresBlockQuery(
+        std::unique_ptr<soci::session> sql,
+        KeyValueStorage &file_store,
+        std::shared_ptr<shared_model::interface::BlockJsonDeserializer>
+            converter)
+        : psql_(std::move(sql)),
+          sql_(*psql_),
           block_store_(file_store),
           converter_(std::move(converter)),
           log_(logger::log("PostgresBlockQuery")) {}

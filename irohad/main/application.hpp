@@ -22,6 +22,8 @@
 #include "consensus/consensus_block_cache.hpp"
 #include "cryptography/crypto_provider/crypto_model_signer.hpp"
 #include "cryptography/keypair.hpp"
+#include "interfaces/common_objects/common_objects_factory.hpp"
+#include "interfaces/iroha_internal/transaction_batch_factory.hpp"
 #include "logger/logger.hpp"
 #include "main/impl/block_loader_init.hpp"
 #include "main/impl/consensus_init.hpp"
@@ -29,16 +31,19 @@
 #include "main/server_runner.hpp"
 #include "mst.grpc.pb.h"
 #include "multi_sig_transactions/mst_processor.hpp"
+#include "multi_sig_transactions/transport/mst_transport_grpc.hpp"
 #include "network/block_loader.hpp"
 #include "network/consensus_gate.hpp"
 #include "network/impl/peer_communication_service_impl.hpp"
 #include "network/ordering_gate.hpp"
 #include "network/peer_communication_service.hpp"
+#include "pending_txs_storage/impl/pending_txs_storage_impl.hpp"
 #include "simulator/block_creator.hpp"
 #include "simulator/impl/simulator.hpp"
 #include "synchronizer/impl/synchronizer_impl.hpp"
 #include "synchronizer/synchronizer.hpp"
 #include "torii/command_service.hpp"
+#include "torii/impl/command_service_transport_grpc.hpp"
 #include "torii/processor/query_processor_impl.hpp"
 #include "torii/processor/transaction_processor_impl.hpp"
 #include "torii/query_service.hpp"
@@ -105,7 +110,7 @@ class Irohad {
    */
   virtual void run();
 
-  virtual ~Irohad() = default;
+  virtual ~Irohad();
 
  protected:
   // -----------------------| component initialization |------------------------
@@ -114,9 +119,13 @@ class Irohad {
 
   virtual void initCryptoProvider();
 
+  virtual void initBatchParser();
+
   virtual void initValidators();
 
   virtual void initNetworkClient();
+
+  virtual void initFactories();
 
   virtual void initOrderingGate();
 
@@ -135,6 +144,8 @@ class Irohad {
   virtual void initStatusBus();
 
   virtual void initMstProcessor();
+
+  virtual void initPendingTxsStorage();
 
   virtual void initTransactionCommandService();
 
@@ -160,6 +171,9 @@ class Irohad {
   // crypto provider
   std::shared_ptr<shared_model::crypto::CryptoModelSigner<>> crypto_signer_;
 
+  // batch parser
+  std::shared_ptr<shared_model::interface::TransactionBatchParser> batch_parser;
+
   // validators
   std::shared_ptr<iroha::validation::StatefulValidator> stateful_validator;
   std::shared_ptr<iroha::validation::ChainValidator> chain_validator;
@@ -171,6 +185,14 @@ class Irohad {
   std::shared_ptr<iroha::network::AsyncGrpcClient<google::protobuf::Empty>>
       async_call_;
 
+  // common objects factory
+  std::shared_ptr<shared_model::interface::CommonObjectsFactory>
+      common_objects_factory_;
+
+  // transaction batch factory
+  std::shared_ptr<shared_model::interface::TransactionBatchFactory>
+      transaction_batch_factory_;
+
   // ordering gate
   std::shared_ptr<iroha::network::OrderingGate> ordering_gate;
 
@@ -178,7 +200,8 @@ class Irohad {
   std::shared_ptr<iroha::simulator::Simulator> simulator;
 
   // block cache for consensus and block loader
-  std::shared_ptr<iroha::consensus::ConsensusResultCache> consensus_result_cache_;
+  std::shared_ptr<iroha::consensus::ConsensusResultCache>
+      consensus_result_cache_;
 
   // block loader
   std::shared_ptr<iroha::network::BlockLoader> block_loader;
@@ -192,13 +215,24 @@ class Irohad {
   // pcs
   std::shared_ptr<iroha::network::PeerCommunicationService> pcs;
 
+  // transaction factory
+  std::shared_ptr<shared_model::interface::AbstractTransportFactory<
+      shared_model::interface::Transaction,
+      iroha::protocol::Transaction>>
+      transaction_factory;
+
   // mst
   std::shared_ptr<iroha::MstProcessor> mst_processor;
 
+  // pending transactions storage
+  std::shared_ptr<iroha::PendingTransactionStorage> pending_txs_storage_;
+
+  // status bus
   std::shared_ptr<iroha::torii::StatusBus> status_bus_;
 
   // transaction service
   std::shared_ptr<torii::CommandService> command_service;
+  std::shared_ptr<torii::CommandServiceTransportGrpc> command_service_transport;
 
   // query service
   std::shared_ptr<torii::QueryService> query_service;
@@ -210,6 +244,8 @@ class Irohad {
   iroha::network::OrderingInit ordering_init;
   iroha::consensus::yac::YacInit yac_init;
   iroha::network::BlockLoaderInit loader_init;
+
+  std::shared_ptr<iroha::network::MstTransportGrpc> mst_transport;
 
   logger::Logger log_;
 
