@@ -37,6 +37,7 @@ add_library(shared_model_interfaces
     queries/impl/get_pending_transactions.cpp
     queries/impl/blocks_query.cpp
     queries/impl/query_payload_meta.cpp
+    queries/impl/tx_pagination_meta.cpp
     common_objects/impl/amount.cpp
     common_objects/impl/signature.cpp
     common_objects/impl/peer.cpp
@@ -57,6 +58,8 @@ if (IROHA_ROOT_PROJECT)
       query_responses/impl/block_error_response.cpp
       query_responses/impl/block_query_response.cpp
       query_responses/impl/block_response.cpp
+      query_responses/impl/transactions_page_response.cpp
+      transaction_responses/impl/tx_response.cpp
       iroha_internal/transaction_sequence.cpp
       iroha_internal/transaction_batch_impl.cpp
       iroha_internal/transaction_batch_parser_impl.cpp
@@ -77,5 +80,6 @@ endif ()
 target_link_libraries(shared_model_interfaces
     shared_model_utils
     shared_model_cryptography
+    common
     ${Boost_LIBRARIES}
     )
